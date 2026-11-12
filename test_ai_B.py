@@ -1,35 +1,113 @@
-# 同一 대화에서 명세를 기준으로 작성한 초안. 코드 비공개 독립 실험이 아님.
 import pytest
+
 from load_scores import load_scores
 
-def test_valid_and_duplicate(tmp_path):
-    f=tmp_path/'b.csv'; f.write_text('name,score\n가,80\n가,90\n',encoding='utf-8')
-    assert load_scores(f)==([('가',80),('가',90)],[])
 
-def test_blank_and_comma(tmp_path):
-    f=tmp_path/'b.csv'; f.write_text('name,score\n\n"가,나",70\n',encoding='utf-8')
-    assert load_scores(f)==([('가,나',70)],[])
+@pytest.fixture
+def write_csv(tmp_path):
+    """각 테스트에서 사용할 CSV 파일을 만든다."""
+    def _write(content, *, encoding="utf-8"):
+        path = tmp_path / "scores.csv"
+        path.write_text(content, encoding=encoding, newline="")
+        return path
 
-def test_header(tmp_path):
-    f=tmp_path/'b.csv'; f.write_text('name,score\n',encoding='utf-8')
-    assert load_scores(f)==([],[])
+    return _write
 
-def test_missing(tmp_path):
-    with pytest.raises(FileNotFoundError): load_scores(tmp_path/'missing.csv')
 
-@pytest.mark.parametrize('score,valid',[(-1,False),(0,True),(1,True),(99,True),(100,True),(101,False)])
-def test_boundary(tmp_path,score,valid):
-    f=tmp_path/'b.csv'; f.write_text(f'name,score\n가,{score}\n',encoding='utf-8')
-    kept,skipped=load_scores(f)
-    assert kept==([('가',score)] if valid else [])
-    assert len(skipped)==(0 if valid else 1)
-    if not valid: assert skipped[0][0]==2 and skipped[0][1]==f'가,{score}' and skipped[0][2]
+def test_valid_rows_keep_input_order_and_trim_whitespace(write_csv):
+    path = write_csv("이름,점수\n  민수  , 75 \n지영,90\n")
 
-@pytest.mark.parametrize('row',['가,80,비고',',80','가,','가,결석','가,88.5'])
-def test_invalid_records(tmp_path,row):
-    f=tmp_path/'b.csv'; f.write_text('name,score\n'+row+'\n',encoding='utf-8')
-    kept,skipped=load_scores(f)
-    assert kept==[]
-    assert len(skipped)==1
-    number,original,reason=skipped[0]
-    assert number==2 and original==row and reason
+    assert load_scores(path) == ([ ("민수", 75), ("지영", 90) ], [])
+
+
+def test_duplicate_names_are_kept(write_csv):
+    path = write_csv("이름,점수\n민수,70\n민수,85\n")
+
+    assert load_scores(path) == ([ ("민수", 70), ("민수", 85) ], [])
+
+
+@pytest.mark.parametrize("score", [0, 100])
+def test_score_range_includes_both_endpoints(write_csv, score):
+    path = write_csv(f"이름,점수\n학생,{score}\n")
+
+    assert load_scores(path) == ([ ("학생", score) ], [])
+
+
+def test_header_only_file_returns_empty_lists(write_csv):
+    path = write_csv("이름,점수\n")
+
+    assert load_scores(path) == ([], [])
+
+
+def test_utf8_bom_is_supported(write_csv):
+    path = write_csv("이름,점수\n학생,81\n", encoding="utf-8-sig")
+
+    assert load_scores(path) == ([ ("학생", 81) ], [])
+
+
+def test_quoted_name_can_contain_comma(write_csv):
+    path = write_csv('이름,점수\n"홍길동, 2반",88\n')
+
+    assert load_scores(path) == ([ ("홍길동, 2반", 88) ], [])
+
+
+def test_blank_lines_are_ignored_without_skip_records(write_csv):
+    path = write_csv("이름,점수\n\n학생,80\n\n")
+
+    assert load_scores(path) == ([ ("학생", 80) ], [])
+
+
+def test_invalid_rows_are_skipped_and_processing_continues(write_csv):
+    path = write_csv(
+        "이름,점수\n"
+        "학생,80\n"
+        "열하나만\n"
+        "학생,90,추가\n"
+        ",70\n"
+        "학생,\n"
+        "학생,팔십\n"
+        "학생,-1\n"
+        "학생,101\n"
+        "다음학생,100\n"
+    )
+
+    kept, skipped = load_scores(path)
+
+    assert kept == [("학생", 80), ("다음학생", 100)]
+    assert [line_no for line_no, _, _ in skipped] == [3, 4, 5, 6, 7, 8, 9]
+    assert [reason for _, _, reason in skipped] == [
+        "열 개수가 2가 아님",
+        "열 개수가 2가 아님",
+        "이름이 비어 있음",
+        "점수가 비어 있음",
+        "점수가 정수가 아님",
+        "점수가 0~100 밖",
+        "점수가 0~100 밖",
+    ]
+
+
+def test_skipped_record_contains_original_line(write_csv):
+    original_line = '"홍길동, 2반",101'
+    path = write_csv(f"이름,점수\n{original_line}\n")
+
+    kept, skipped = load_scores(path)
+
+    assert kept == []
+    assert skipped == [(2, original_line, "점수가 0~100 밖")]
+
+
+def test_missing_file_raises_file_not_found_error(tmp_path):
+    missing_path = tmp_path / "missing.csv"
+
+    with pytest.raises(FileNotFoundError):
+        load_scores(missing_path)
+
+
+def test_input_file_is_not_modified(write_csv):
+    original = "이름,점수\n학생,75\n학생,잘못된 점수\n"
+    path = write_csv(original)
+    before = path.read_bytes()
+
+    load_scores(path)
+
+    assert path.read_bytes() == before

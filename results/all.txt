@@ -1,4 +1,65 @@
-..............................................                           [100%]
+...................................F......FF...................          [100%]
+=================================== FAILURES ===================================
+__________________ test_skipped_record_contains_original_line __________________
+
+write_csv = <function write_csv.<locals>._write at 0x7fa0151da160>
+
+    def test_skipped_record_contains_original_line(write_csv):
+        original_line = '"홍길동, 2반",101'
+        path = write_csv(f"이름,점수\n{original_line}\n")
+    
+        kept, skipped = load_scores(path)
+    
+        assert kept == []
+>       assert skipped == [(2, original_line, "점수가 0~100 밖")]
+E       assert [(2, '홍길동, 2반...점수가 0~100 밖')] == [(2, '"홍길동, 2...점수가 0~100 밖')]
+E         
+E         At index 0 diff: (2, '홍길동, 2반,101', '점수가 0~100 밖') != (2, '"홍길동, 2반",101', '점수가 0~100 밖')
+E         Use -v to get more diff
+
+test_ai_B.py:96: AssertionError
+________________ test_find_max_returns_largest_score[scores4-9] ________________
+
+scores = [1, 3, 9], expected = 9
+
+    @pytest.mark.parametrize(
+        ("scores", "expected"),
+        [
+            ([7], 7),                       # 원소가 하나
+            ([3, 8, 5], 8),                 # 중간 원소가 최댓값
+            ([-9, -2, -6], -2),             # 음수 점수
+            ([4, 4, 2], 4),                 # 최댓값 중복
+            ([1, 3, 9], 9),                 # 마지막 원소가 최댓값
+            ([2, 9], 9),                    # 원소가 두 개
+        ],
+    )
+    def test_find_max_returns_largest_score(scores, expected):
+>       assert find_max(scores) == expected
+E       assert 3 == 9
+E        +  where 3 = find_max([1, 3, 9])
+
+test_ai_bug.py:17: AssertionError
+________________ test_find_max_returns_largest_score[scores5-9] ________________
+
+scores = [2, 9], expected = 9
+
+    @pytest.mark.parametrize(
+        ("scores", "expected"),
+        [
+            ([7], 7),                       # 원소가 하나
+            ([3, 8, 5], 8),                 # 중간 원소가 최댓값
+            ([-9, -2, -6], -2),             # 음수 점수
+            ([4, 4, 2], 4),                 # 최댓값 중복
+            ([1, 3, 9], 9),                 # 마지막 원소가 최댓값
+            ([2, 9], 9),                    # 원소가 두 개
+        ],
+    )
+    def test_find_max_returns_largest_score(scores, expected):
+>       assert find_max(scores) == expected
+E       assert 2 == 9
+E        +  where 2 = find_max([2, 9])
+
+test_ai_bug.py:17: AssertionError
 =============================== warnings summary ===============================
 ../../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
   /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
@@ -8,4 +69,8 @@
     from _pytest.python import CallSpec2
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-46 passed, 1 warning in 0.04s
+=========================== short test summary info ============================
+FAILED test_ai_B.py::test_skipped_record_contains_original_line - assert [(2,...
+FAILED test_ai_bug.py::test_find_max_returns_largest_score[scores4-9] - asser...
+FAILED test_ai_bug.py::test_find_max_returns_largest_score[scores5-9] - asser...
+3 failed, 60 passed, 1 warning in 0.07s

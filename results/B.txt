@@ -1,4 +1,23 @@
-...............                                                          [100%]
+.........F..                                                             [100%]
+=================================== FAILURES ===================================
+__________________ test_skipped_record_contains_original_line __________________
+
+write_csv = <function write_csv.<locals>._write at 0x7ff909444360>
+
+    def test_skipped_record_contains_original_line(write_csv):
+        original_line = '"홍길동, 2반",101'
+        path = write_csv(f"이름,점수\n{original_line}\n")
+    
+        kept, skipped = load_scores(path)
+    
+        assert kept == []
+>       assert skipped == [(2, original_line, "점수가 0~100 밖")]
+E       assert [(2, '홍길동, 2반...점수가 0~100 밖')] == [(2, '"홍길동, 2...점수가 0~100 밖')]
+E         
+E         At index 0 diff: (2, '홍길동, 2반,101', '점수가 0~100 밖') != (2, '"홍길동, 2반",101', '점수가 0~100 밖')
+E         Use -v to get more diff
+
+test_ai_B.py:96: AssertionError
 =============================== warnings summary ===============================
 ../../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
   /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
@@ -17,4 +36,6 @@ load_scores.py      45      9    80%   77-86
 ----------------------------------------------
 TOTAL               45      9    80%
 Coverage JSON written to file results/B.json
-15 passed, 1 warning in 0.07s
+=========================== short test summary info ============================
+FAILED test_ai_B.py::test_skipped_record_contains_original_line - assert [(2,...
+1 failed, 11 passed, 1 warning in 0.06s
